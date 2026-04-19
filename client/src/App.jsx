@@ -11,7 +11,7 @@ import InterviewHistory from './pages/InterviewHistory'
 import Pricing from './pages/Pricing'
 import InterviewReport from './pages/InterviewReport'
 
-export const ServerUrl  = "https://three-interviewiq-09da.onrender.com"
+export const ServerUrl = import.meta.env.VITE_API_URL || "http://localhost:6000"
 
 function App() {
 
@@ -22,7 +22,7 @@ function App() {
         const result = await axios.get(ServerUrl + "/api/user/current-user", {withCredentials:true})
         dispatch(setUserData(result.data))
       } catch (error) {
-        console.log(error)
+        // Silently handle - user not logged in yet
         dispatch(setUserData(null))
       }
     }

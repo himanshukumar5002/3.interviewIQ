@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BsRobot } from "react-icons/bs";
 import { IoSparkles } from "react-icons/io5";
 import { motion } from "motion/react"
@@ -9,24 +9,30 @@ import axios from 'axios';
 import { ServerUrl } from '../App';
 import { useDispatch } from 'react-redux';
 import { setUserData } from '../redux/userSlice';
+
 function Auth({isModel = false}) {
     const dispatch = useDispatch()
 
     const handleGoogleAuth = async () => {
         try {
-            const response = await signInWithPopup(auth,provider)
-            let User = response.user
+            console.log("Starting Google sign in...")
+            const result = await signInWithPopup(auth, provider)
+            console.log("Google auth successful:", result.user)
+            
+            let User = result.user
             let name = User.displayName
             let email = User.email
-            const result = await axios.post(ServerUrl + "/api/auth/google" , {name , email} , {withCredentials:true})
-            dispatch(setUserData(result.data))
             
-
-
+            console.log("Sending to backend:", { name, email })
+            const backendResult = await axios.post(ServerUrl + "/api/auth/google", { name, email }, { withCredentials: true })
+            console.log("Backend response:", backendResult.data)
+            dispatch(setUserData(backendResult.data))
             
+            // Redirect to home page
+            window.location.href = "/"
         } catch (error) {
-            console.log(error)
-              dispatch(setUserData(null))
+            console.error("Auth error:", error)
+            dispatch(setUserData(null))
         }
     }
   return (

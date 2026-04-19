@@ -4,6 +4,12 @@ import User from "../models/user.model.js"
 export const getCurrentUser = async (req,res) => {
     try {
         const userId = req.userId
+        
+        // If no user ID, user is not logged in
+        if(!userId){
+            return res.status(200).json(null)
+        }
+        
         const user = await User.findById(userId)
         if(!user) {
             return res.status(404).json({message:"user does not found"})
