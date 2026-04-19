@@ -16,20 +16,30 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-  "https://three-interviewiq-client-6ubi.onrender.com"
+  "https://three-interviewiq-client-6ubi.onrender.com",
+  "https://three-interviewiq-09da.onrender.com" // backend URL
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
+    // Allow if origin is in whitelist
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, false);
+      // For development, allow any localhost origin
+      if (origin.includes("localhost")) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 };
 
 app.use(cors(corsOptions));
