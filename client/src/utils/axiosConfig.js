@@ -2,9 +2,12 @@ import axios from 'axios';
 
 const ServerUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
+console.log("Axios configured with ServerUrl:", ServerUrl);
+console.log("Current environment:", import.meta.env.MODE);
+
 // Set global axios defaults so all axios instances use credentials
 axios.defaults.baseURL = ServerUrl;
-axios.defaults.withCredentials = true;
+axios.defaults.withCredentials = true; // CRITICAL: Send cookies with cross-origin requests
 axios.defaults.timeout = 30000; // 30 second timeout
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 axios.defaults.headers.common['Accept'] = 'application/json';
@@ -12,7 +15,7 @@ axios.defaults.headers.common['Accept'] = 'application/json';
 // Create axios instance with default config
 const axiosInstance = axios.create({
   baseURL: ServerUrl,
-  withCredentials: true, // IMPORTANT: Send cookies with every request
+  withCredentials: true, // CRITICAL: Send cookies with every request including cross-origin
   timeout: 30000, // 30 second timeout
   headers: {
     'Content-Type': 'application/json',
@@ -44,12 +47,13 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   response => {
     console.log(`[${new Date().toISOString()}] API Response: ${response.status} from ${response.config.url}`);
-    console.log(`  Response headers:`, response.headers);
+    console.log(`  Set-Cookie header:`, response.headers['set-cookie'] ? "YES" : "NO");
     return response;
   },
   error => {
     console.error(`[${new Date().toISOString()}] API Error: ${error.response?.status || error.code} from ${error.config?.url}`);
     console.error(`  Error response:`, error.response?.data);
+    console.error(`  Request credentials:`, error.config?.withCredentials);
     
     // Better error messages for timeout issues
     if (error.code === 'ECONNABORTED') {
@@ -62,7 +66,8 @@ axiosInstance.interceptors.response.use(
       console.error("File too large - please upload a smaller file");
     }
     if (error.response?.status === 401) {
-      console.error("Unauthorized - user not authenticated. Cookies:", document.cookie);
+      console.error("Unauthorized - user not authenticated");
+      console.error("Check browser cookies for token:", document.cookie.length > 0 ? "YES" : "NO");
     }
     
     return Promise.reject(error);

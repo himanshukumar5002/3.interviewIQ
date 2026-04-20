@@ -20,15 +20,22 @@ export const googleAuth = async (req, res) => {
         let token = await genToken(user._id);
         console.log("Token generated:", token.substring(0, 20) + "...");
         
+        // Determine if we're on production or development
+        const isProduction = process.env.NODE_ENV === "production";
+        const protocol = req.protocol || "https";
+        
+        console.log("Setting cookie - isProduction:", isProduction, "Protocol:", protocol);
+        
         res.cookie("token", token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: "/"
+            secure: isProduction, // true on production, false on dev
+            sameSite: isProduction ? "none" : "lax", // "none" for cross-origin on production
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            path: "/",
+            domain: isProduction ? ".onrender.com" : undefined // Allow subdomains on production
         });
         
-        console.log("Cookie set - Protocol:", req.protocol, "Secure:", process.env.NODE_ENV === "production");
+        console.log("Cookie set successfully");
         console.log("Sending user response:", user);
         
         return res.status(200).json({
@@ -46,11 +53,14 @@ export const googleAuth = async (req, res) => {
 
 export const logOut = async (req, res) => {
     try {
+        const isProduction = process.env.NODE_ENV === "production";
+        
         res.clearCookie("token", {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            path: "/"
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            path: "/",
+            domain: isProduction ? ".onrender.com" : undefined
         });
         console.log("User logged out, cookie cleared");
         return res.status(200).json({ message: "LogOut Successfully" });
