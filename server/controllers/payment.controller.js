@@ -3,22 +3,30 @@ import User from "../models/user.model.js";
 import razorpay from "../services/razorpay.service.js";
 import crypto from "crypto"
 
-export const createOrder = async (req,res) => {
-    try {
-        const {planId, amount, credits} = req.body;
-          if (!amount || !credits) {
-      return res.status(400).json({ message: "Invalid plan data" });
+export const createOrder = async (req, res) => {
+  try {
+    const { planId, amount, credits } = req.body;
+    
+    console.log("Create order request:", { planId, amount, credits, userId: req.userId });
+    
+    if (!amount || !credits) {
+      return res.status(400).json({ message: "Invalid plan data - amount and credits required" });
     }
 
-     const options = {
+    if (!req.userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const options = {
       amount: amount * 100, // convert to paise
       currency: "INR",
       receipt: `receipt_${Date.now()}`,
     };
 
-    const order = await razorpay.orders.create(options)
+    const order = await razorpay.orders.create(options);
+    console.log("Razorpay order created:", order.id);
 
-     await Payment.create({
+    await Payment.create({
       userId: req.userId,
       planId,
       amount,
@@ -27,22 +35,26 @@ export const createOrder = async (req,res) => {
       status: "created",
     });
 
+    console.log("Payment record created in DB");
     return res.json(order);
-
     
-    } catch (error) {
-         return res.status(500).json({message:`failed to create Razorpay order ${error}`})
-    }
+  } catch (error) {
+    console.error("Create order error:", error.message);
+    return res.status(500).json({ message: `Failed to create Razorpay order: ${error.message}` });
+  }
 }
 
+export const verifyPayment = async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    
+    console.log("Verify payment request:", { razorpay_order_id, razorpay_payment_id });
 
-export const verifyPayment = async (req,res) => {
-    try {
-        const {razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature} = req.body
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ message: "Missing payment verification data" });
+    }
 
-      const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
@@ -50,18 +62,21 @@ export const verifyPayment = async (req,res) => {
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
+      console.error("Signature mismatch");
       return res.status(400).json({ message: "Invalid payment signature" });
     }
 
-     const payment = await Payment.findOne({
+    const payment = await Payment.findOne({
       razorpayOrderId: razorpay_order_id,
     });
 
     if (!payment) {
+      console.error("Payment record not found:", razorpay_order_id);
       return res.status(404).json({ message: "Payment not found" });
     }
 
     if (payment.status === "paid") {
+      console.log("Payment already processed:", razorpay_order_id);
       return res.json({ message: "Already processed" });
     }
 
@@ -69,11 +84,14 @@ export const verifyPayment = async (req,res) => {
     payment.status = "paid";
     payment.razorpayPaymentId = razorpay_payment_id;
     await payment.save();
+    console.log("Payment marked as paid:", razorpay_order_id);
 
     // Add credits to user
     const updatedUser = await User.findByIdAndUpdate(payment.userId, {
       $inc: { credits: payment.credits }
-    },{new:true});
+    }, { new: true });
+
+    console.log("Credits added to user:", payment.userId, "Credits:", payment.credits);
 
     res.json({
       success: true,
@@ -81,7 +99,8 @@ export const verifyPayment = async (req,res) => {
       user: updatedUser,
     });
 
-    } catch (error) {
-         return res.status(500).json({message:`failed to verify Razorpay payment ${error}`})
-    }
+  } catch (error) {
+    console.error("Verify payment error:", error.message);
+    return res.status(500).json({ message: `Failed to verify Razorpay payment: ${error.message}` });
+  }
 }

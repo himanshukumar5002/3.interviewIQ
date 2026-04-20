@@ -112,13 +112,12 @@ Return strictly JSON:
     return res.status(500).json({ message: errorMessage });
   }
 };
-  }
-};
-
 
 export const generateQuestion = async (req, res) => {
   try {
     let { role, experience, mode, resumeText, projects, skills } = req.body
+
+    console.log("Generate questions request:", { role, experience, mode, userId: req.userId });
 
     role = role?.trim();
     experience = experience?.trim();
@@ -128,9 +127,14 @@ export const generateQuestion = async (req, res) => {
       return res.status(400).json({ message: "Role, Experience and Mode are required." })
     }
 
+    if (!req.userId) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
     const user = await User.findById(req.userId)
 
     if (!user) {
+      console.error("User not found:", req.userId);
       return res.status(404).json({
         message: "User not found."
       });
@@ -141,6 +145,8 @@ export const generateQuestion = async (req, res) => {
         message: "Not enough credits. Minimum 50 required."
       });
     }
+
+    console.log("Generating questions for user:", user.email);
 
     const projectText = Array.isArray(projects) && projects.length
       ? projects.join(", ")
@@ -252,7 +258,9 @@ Make questions based on the candidate’s role, experience,interviewMode, projec
       questions: interview.questions
     });
   } catch (error) {
-    return res.status(500).json({message:`failed to create interview ${error}`})
+    console.error("Generate questions error:", error.message);
+    console.error("Error stack:", error.stack);
+    return res.status(500).json({ message: `Failed to create interview: ${error.message}` });
   }
 }
 
