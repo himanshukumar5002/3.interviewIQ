@@ -8,7 +8,7 @@ import {
     FaChartLine,
 } from "react-icons/fa";
 import { useState } from 'react';
-import axios from "axios"
+import axiosInstance from '../utils/axiosConfig';
 import { ServerUrl } from '../App';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUserData } from '../redux/userSlice';
@@ -35,7 +35,7 @@ function Step1SetUp({ onStart }) {
         formdata.append("resume", resumeFile)
 
         try {
-            const result = await axios.post(ServerUrl + "/api/interview/resume", formdata, { withCredentials: true })
+            const result = await axiosInstance.post("/api/interview/resume", formdata)
 
             console.log(result.data)
 
@@ -49,7 +49,7 @@ function Step1SetUp({ onStart }) {
             setAnalyzing(false);
 
         } catch (error) {
-            console.log(error)
+            console.error("Resume upload error:", error.response?.data || error.message)
             setAnalyzing(false);
         }
     }
@@ -57,7 +57,7 @@ function Step1SetUp({ onStart }) {
     const handleStart = async () => {
         setLoading(true)
         try {
-           const result = await axios.post(ServerUrl + "/api/interview/generate-questions" , {role, experience, mode , resumeText, projects, skills } , {withCredentials:true}) 
+           const result = await axiosInstance.post("/api/interview/generate-questions" , {role, experience, mode , resumeText, projects, skills })
            console.log(result.data)
            if(userData){
             dispatch(setUserData({...userData , credits:result.data.creditsLeft}))
@@ -66,7 +66,7 @@ function Step1SetUp({ onStart }) {
            onStart(result.data)
 
         } catch (error) {
-            console.log(error)
+            console.error("Start interview error:", error.response?.data || error.message)
             setLoading(false)
         }
     }

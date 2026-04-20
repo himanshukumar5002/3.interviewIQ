@@ -23,7 +23,13 @@ const axiosInstance = axios.create({
 // Add request interceptor for debugging
 axiosInstance.interceptors.request.use(
   config => {
-    console.log(`[${new Date().toISOString()}] API Request: ${config.method.toUpperCase()} ${config.url}`);
+    // Don't override Content-Type for FormData (let browser set boundary)
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+      console.log(`[${new Date().toISOString()}] API Request: ${config.method.toUpperCase()} ${config.url} (multipart/form-data)`);
+    } else {
+      console.log(`[${new Date().toISOString()}] API Request: ${config.method.toUpperCase()} ${config.url}`);
+    }
     return config;
   },
   error => {
@@ -47,6 +53,9 @@ axiosInstance.interceptors.response.use(
     }
     if (error.response?.status === 503) {
       console.error("Server is temporarily unavailable");
+    }
+    if (error.response?.status === 413) {
+      console.error("File too large - please upload a smaller file");
     }
     
     return Promise.reject(error);

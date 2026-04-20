@@ -6,15 +6,28 @@ import Interview from "../models/interview.model.js";
 
 export const analyzeResume = async (req, res) => {
   try {
+    console.log("Resume analysis started");
+    console.log("File:", req.file ? `${req.file.filename} (${req.file.size} bytes)` : "No file");
+    
     if (!req.file) {
-      return res.status(400).json({ message: "Resume required" });
+      console.error("No resume file uploaded");
+      return res.status(400).json({ message: "Resume file is required" });
     }
-    const filepath = req.file.path
 
-    const fileBuffer = await fs.promises.readFile(filepath)
-    const uint8Array = new Uint8Array(fileBuffer)
+    const filepath = req.file.path;
+    console.log("Reading file from:", filepath);
 
+    if (!fs.existsSync(filepath)) {
+      console.error("File not found:", filepath);
+      return res.status(400).json({ message: "Uploaded file not found" });
+    }
+
+    const fileBuffer = await fs.promises.readFile(filepath);
+    const uint8Array = new Uint8Array(fileBuffer);
+    
+    console.log("PDF parsing started...");
     const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
+    console.log(`PDF has ${pdf.numPages} pages`);
 
     let resumeText = "";
 
@@ -27,16 +40,23 @@ export const analyzeResume = async (req, res) => {
       resumeText += pageText + "\n";
     }
 
-
     resumeText = resumeText
       .replace(/\s+/g, " ")
       .trim();
 
+    if (!resumeText || resumeText.length < 10) {
+      console.error("Resume text is empty or too short");
+      if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+      return res.status(400).json({ message: "Resume appears to be empty or invalid" });
+    }
+
+    console.log(`Extracted text length: ${resumeText.length} characters`);
+    console.log("Sending to AI for analysis...");
+
     const messages = [
       {
         role: "system",
-        content: `
-Extract structured data from resume.
+        content: `Extract structured data from resume.
 
 Return strictly JSON:
 
@@ -54,30 +74,44 @@ Return strictly JSON:
       }
     ];
 
-
-    const aiResponse = await askAi(messages)
+    const aiResponse = await askAi(messages);
+    console.log("AI response received");
 
     const parsed = JSON.parse(aiResponse);
+    console.log("Resume analysis completed successfully");
 
-    fs.unlinkSync(filepath)
-
+    // Clean up uploaded file
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+      console.log("Temporary file deleted");
+    }
 
     res.json({
-      role: parsed.role,
-      experience: parsed.experience,
-      projects: parsed.projects,
-      skills: parsed.skills,
+      role: parsed.role || "",
+      experience: parsed.experience || "",
+      projects: parsed.projects || [],
+      skills: parsed.skills || [],
       resumeText
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("Resume analysis error:", error.message);
+    console.error("Error stack:", error.stack);
 
+    // Clean up file on error
     if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+      try {
+        fs.unlinkSync(req.file.path);
+        console.log("Temporary file deleted after error");
+      } catch (unlinkErr) {
+        console.error("Failed to delete temporary file:", unlinkErr.message);
+      }
     }
 
-    return res.status(500).json({ message: error.message });
+    const errorMessage = error.message || "Failed to analyze resume";
+    return res.status(500).json({ message: errorMessage });
+  }
+};
   }
 };
 
