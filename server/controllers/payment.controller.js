@@ -5,16 +5,19 @@ import crypto from "crypto"
 
 export const createOrder = async (req, res) => {
   try {
+    console.log("Create order request - userId:", req.userId);
+    
     const { planId, amount, credits } = req.body;
     
     console.log("Create order request:", { planId, amount, credits, userId: req.userId });
     
+    if (!req.userId) {
+      console.error("User not authenticated");
+      return res.status(401).json({ message: "User not authenticated. Please login first." });
+    }
+    
     if (!amount || !credits) {
       return res.status(400).json({ message: "Invalid plan data - amount and credits required" });
-    }
-
-    if (!req.userId) {
-      return res.status(401).json({ message: "User not authenticated" });
     }
 
     const options = {
@@ -40,6 +43,7 @@ export const createOrder = async (req, res) => {
     
   } catch (error) {
     console.error("Create order error:", error.message);
+    console.error("Stack:", error.stack);
     return res.status(500).json({ message: `Failed to create Razorpay order: ${error.message}` });
   }
 }
