@@ -71,6 +71,17 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
+// Debug endpoint to check authentication
+app.get("/api/debug/auth", (req, res) => {
+  console.log("Debug auth endpoint - Cookies:", req.cookies);
+  console.log("Debug auth endpoint - Headers:", req.headers);
+  res.json({
+    cookies: req.cookies,
+    headers: Object.keys(req.headers),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();

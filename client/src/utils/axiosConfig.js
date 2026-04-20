@@ -26,9 +26,11 @@ axiosInstance.interceptors.request.use(
     // Don't override Content-Type for FormData (let browser set boundary)
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
-      console.log(`[${new Date().toISOString()}] API Request: ${config.method.toUpperCase()} ${config.url} (multipart/form-data)`);
+      console.log(`[${new Date().toISOString()}] API Request: ${config.method.toUpperCase()} ${config.url}`);
+      console.log(`  withCredentials: ${config.withCredentials}, Data: multipart/form-data`);
     } else {
       console.log(`[${new Date().toISOString()}] API Request: ${config.method.toUpperCase()} ${config.url}`);
+      console.log(`  withCredentials: ${config.withCredentials}, Data:`, config.data);
     }
     return config;
   },
@@ -42,10 +44,12 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   response => {
     console.log(`[${new Date().toISOString()}] API Response: ${response.status} from ${response.config.url}`);
+    console.log(`  Response headers:`, response.headers);
     return response;
   },
   error => {
     console.error(`[${new Date().toISOString()}] API Error: ${error.response?.status || error.code} from ${error.config?.url}`);
+    console.error(`  Error response:`, error.response?.data);
     
     // Better error messages for timeout issues
     if (error.code === 'ECONNABORTED') {
@@ -56,6 +60,9 @@ axiosInstance.interceptors.response.use(
     }
     if (error.response?.status === 413) {
       console.error("File too large - please upload a smaller file");
+    }
+    if (error.response?.status === 401) {
+      console.error("Unauthorized - user not authenticated. Cookies:", document.cookie);
     }
     
     return Promise.reject(error);
