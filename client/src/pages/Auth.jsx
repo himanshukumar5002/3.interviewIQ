@@ -5,13 +5,14 @@ import { motion } from "motion/react"
 import { FcGoogle } from "react-icons/fc";
 import { signInWithPopup } from 'firebase/auth';
 import { auth, provider } from '../utils/firebase';
-import axios from 'axios';
-import { ServerUrl } from '../App';
+import axiosInstance from '../utils/axiosConfig'
 import { useDispatch } from 'react-redux';
 import { setUserData } from '../redux/userSlice';
+import { useNavigate } from 'react-router-dom';
 
 function Auth({isModel = false}) {
     const dispatch = useDispatch()
+    const navigate = useNavigate()
 
     const handleGoogleAuth = async () => {
         try {
@@ -24,15 +25,23 @@ function Auth({isModel = false}) {
             let email = User.email
             
             console.log("Sending to backend:", { name, email })
-            const backendResult = await axios.post(ServerUrl + "/api/auth/google", { name, email }, { withCredentials: true })
+            const backendResult = await axiosInstance.post("/api/auth/google", { name, email })
             console.log("Backend response:", backendResult.data)
+            
+            // Dispatch to Redux
             dispatch(setUserData(backendResult.data))
             
-            // Redirect to home page
-            window.location.href = "/"
+            // Save to localStorage as backup
+            localStorage.setItem('currentUser', JSON.stringify(backendResult.data))
+            
+            console.log("User saved to localStorage and Redux")
+            
+            // Navigate to home without hard reload
+            navigate("/")
         } catch (error) {
             console.error("Auth error:", error)
             dispatch(setUserData(null))
+            localStorage.removeItem('currentUser')
         }
     }
   return (

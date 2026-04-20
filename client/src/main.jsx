@@ -1,6 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+// Setup axios defaults BEFORE anything else
+import './utils/axiosConfig.js'
 import App from './App.jsx'
 import { BrowserRouter } from 'react-router-dom'
 import { Provider } from 'react-redux'
